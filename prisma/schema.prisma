@@ -129,7 +129,7 @@ model Route {
   timeWindowStart        String
   timeWindowEnd          String
   rotationWeeks          Int      @default(1)
-  matchRadiusMiles       Float    @default(1)
+  matchRadiusMiles       Float    @default(2)
   createdAt              DateTime @default(now())
 
   members     RouteMember[]

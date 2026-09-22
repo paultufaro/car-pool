@@ -308,7 +308,7 @@ export function CreateRouteForm({ action, groupId }: { action: Action; groupId: 
             step="0.25"
             min="0.25"
             max="10"
-            defaultValue="1"
+            defaultValue="2"
             className={inputClass}
           />
         </Field>

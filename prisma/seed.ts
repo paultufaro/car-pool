@@ -173,7 +173,7 @@ async function main() {
       timeWindowStart: "07:45",
       timeWindowEnd: "08:10",
       rotationWeeks: 1,
-      matchRadiusMiles: 1.5,
+      matchRadiusMiles: 2,
       members: {
         create: [{ familyId: dana.family.id }, { familyId: marcus.family.id }],
       },
