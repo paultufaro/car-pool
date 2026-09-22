@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { VerificationChannel } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -70,6 +71,7 @@ export async function verify(_prev: FormState, formData: FormData): Promise<Form
   const code = String(formData.get("code") ?? "").trim();
   const ok = await consumeVerificationCode(user.id, channel, code);
   if (!ok) return { error: "That code is invalid, expired or has been tried too many times" };
+  revalidatePath("/verify");
 
   const updated = await prisma.user.findUnique({ where: { id: user.id } });
   if (updated?.emailVerifiedAt && updated?.phoneVerifiedAt) {

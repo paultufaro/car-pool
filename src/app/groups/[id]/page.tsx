@@ -16,6 +16,7 @@ import {
   inputClass,
   secondaryButtonClass,
 } from "@/components/ui";
+import { ConfirmButton } from "@/components/forms";
 
 const GROUP_TYPE_LABELS: Record<string, string> = {
   SCHOOL: "School class",
@@ -120,9 +121,12 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
                 <form action={removeMember}>
                   <input type="hidden" name="groupId" value={group.id} />
                   <input type="hidden" name="userId" value={member.userId} />
-                  <button type="submit" className={dangerButtonClass}>
+                  <ConfirmButton
+                    className={dangerButtonClass}
+                    confirmation={`Remove ${member.user.name} from this group? They lose access to its routes and driving days.`}
+                  >
                     Remove
-                  </button>
+                  </ConfirmButton>
                 </form>
               )}
             </li>
@@ -169,9 +173,12 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
 
             <form action={dissolveGroup}>
               <input type="hidden" name="groupId" value={group.id} />
-              <button type="submit" className={dangerButtonClass}>
+              <ConfirmButton
+                className={dangerButtonClass}
+                confirmation="Dissolve this group? Its routes, schedules and swaps are deleted for everyone."
+              >
                 Dissolve this group
-              </button>
+              </ConfirmButton>
             </form>
           </div>
         </Card>

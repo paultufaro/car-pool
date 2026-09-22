@@ -1,7 +1,7 @@
 import { GroupType, MemberRole, PrismaClient, SwapStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { geocode } from "../src/lib/geocoding";
-import { buildRotation, startOfDayUtc } from "../src/lib/schedule";
+import { regenerateSchedule, startOfDayUtc } from "../src/lib/schedule";
 
 const prisma = new PrismaClient();
 
@@ -229,25 +229,9 @@ async function main() {
   });
 
   const today = startOfDayUtc(new Date());
+  // Same path the app uses, so the one-family route stays unscheduled.
   for (const route of [morning, afternoon, practice]) {
-    const members = await prisma.routeMember.findMany({
-      where: { routeId: route.id },
-      orderBy: { joinedAt: "asc" },
-    });
-    const rotation = buildRotation(
-      members.map((member) => member.familyId),
-      route.daysOfWeek,
-      route.rotationWeeks,
-      today,
-    );
-    await prisma.drivingAssignment.createMany({
-      data: rotation.map((entry) => ({
-        routeId: route.id,
-        familyId: entry.familyId,
-        date: entry.date,
-      })),
-      skipDuplicates: true,
-    });
+    await regenerateSchedule(route.id);
   }
 
   // One open swap so the demo starts with something to claim.

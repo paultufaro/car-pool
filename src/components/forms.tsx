@@ -21,6 +21,29 @@ function Submit({ pending, children }: { pending: boolean; children: string }) {
   );
 }
 
+/** Submit button that asks before running an irreversible admin action. */
+export function ConfirmButton({
+  children,
+  confirmation,
+  className,
+}: {
+  children: string;
+  confirmation: string;
+  className: string;
+}) {
+  return (
+    <button
+      type="submit"
+      className={className}
+      onClick={(event) => {
+        if (!window.confirm(confirmation)) event.preventDefault();
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function SignUpForm({ action }: { action: Action }) {
   const [state, formAction, pending] = useActionState(action, {});
   return (

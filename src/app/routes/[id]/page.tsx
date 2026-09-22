@@ -95,7 +95,7 @@ export default async function RoutePage({ params }: { params: Promise<{ id: stri
         </p>
       )}
 
-      <Card title="Driving rotation" description="Next four weeks.">
+      <Card title="Driving rotation" description="Next eight weeks.">
         {route.assignments.length === 0 ? (
           <EmptyState>No schedule yet.</EmptyState>
         ) : (
