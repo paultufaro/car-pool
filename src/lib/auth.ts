@@ -6,9 +6,21 @@ import { prisma } from "./db";
 const COOKIE_NAME = "carpool_session";
 const SESSION_DAYS = 30;
 
+const MIN_SECRET_LENGTH = 32;
+/** Shipped in .env.example, so it must never sign real sessions. */
+const EXAMPLE_SECRET = "dev-only-insecure-secret-change-me";
+
 function secretKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error("SESSION_SECRET is not set");
+  if (process.env.NODE_ENV === "production") {
+    if (secret.startsWith(EXAMPLE_SECRET)) {
+      throw new Error("SESSION_SECRET is still the example value");
+    }
+    if (secret.length < MIN_SECRET_LENGTH) {
+      throw new Error(`SESSION_SECRET must be at least ${MIN_SECRET_LENGTH} characters`);
+    }
+  }
   return new TextEncoder().encode(secret);
 }
 

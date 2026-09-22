@@ -173,6 +173,11 @@ model SwapRequest {
   status        SwapStatus        @default(OPEN)
   createdAt     DateTime          @default(now())
   claimedAt     DateTime?
+
+  // A partial unique index on (assignmentId) WHERE status = 'OPEN' keeps a day
+  // from collecting two claimable swaps; Prisma can't express it, so it lives
+  // in the migration SQL.
+  @@index([assignmentId])
 }
 
 model NotificationLog {
@@ -194,5 +199,6 @@ model VerificationCode {
   code       String
   expiresAt  DateTime
   consumedAt DateTime?
+  attempts   Int                 @default(0)
   createdAt  DateTime            @default(now())
 }

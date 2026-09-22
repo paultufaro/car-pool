@@ -47,10 +47,13 @@ Other commands: `npm run lint`, `npm run typecheck`, `npm test`, `npm run db:res
   regardless of channel.
 - **Matching** (`src/lib/matching.ts`): a family matches a route when its home is within the route's
   radius of the origin *or* of the straight origin→destination line. Distances are haversine miles.
-- **Reminders**: `POST /api/cron/reminders` notifies families driving today or tomorrow.
+- **Reminders**: `POST /api/cron/reminders` rolls every rotation forward and notifies families
+  driving today or tomorrow.
 - **Rotation** (`src/lib/schedule.ts`): families take the wheel in blocks of `rotationWeeks`
-  (weekly or biweekly), generated 8 weeks ahead. Regenerating after a membership change preserves
-  past days and any day already touched by a swap.
+  (weekly or biweekly), generated 8 weeks ahead and anchored to the route's creation week so
+  regenerating mid-cycle keeps turns in phase. Regenerating after a membership change preserves
+  past days and any day already touched by a swap; a family leaving hands its swap-covered days
+  back to the rotation.
 
 ## Implemented
 
@@ -66,7 +69,9 @@ route) · placeholder Terms of Service.
 
 - **Notification delivery** falls back to database logging until SendGrid/Twilio keys are set.
   Day-before and morning-of reminders are implemented as `POST /api/cron/reminders` (bearer
-  `CRON_SECRET`), but nothing schedules it yet — point a Vercel cron or similar at it daily.
+  `CRON_SECRET`, which is required — the endpoint returns 503 without it), but nothing schedules it
+  yet. Point a Vercel cron or similar at it daily; it also extends schedules past the 8-week
+  horizon.
 - **Geocoding** uses the local gazetteer unless a Mapbox token is configured; coordinates within a
   town are approximate.
 - **Matching** is straight-line proximity, not driving distance. `scoreFamilyAgainstRoute` is the
@@ -88,5 +93,6 @@ route) · placeholder Terms of Service.
    appear only to families on the same route.
 4. **Rotation granularity** is whole weeks per family (the common school-carpool pattern) rather
    than alternating individual days.
-5. **Schedule horizon** is 8 weeks, regenerated whenever route membership changes.
+5. **Schedule horizon** is 8 weeks, regenerated whenever route membership changes and rolled
+   forward by the daily reminder job.
 6. **Passwords, not magic links** — email/phone verification is for contactability, not KYC.

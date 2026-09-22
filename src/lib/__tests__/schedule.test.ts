@@ -25,6 +25,12 @@ describe("buildRotation", () => {
     ]);
   });
 
+  it("keeps the rotation in phase when regenerated mid-cycle", () => {
+    const secondWeek = new Date("2026-01-12T00:00:00.000Z");
+    const fresh = buildRotation(["a", "b"], [1], 1, secondWeek, 2, MONDAY);
+    expect(fresh.map((entry) => entry.familyId)).toEqual(["b", "a"]);
+  });
+
   it("produces nothing without families or days", () => {
     expect(buildRotation([], [1], 1, MONDAY)).toEqual([]);
     expect(buildRotation(["a"], [], 1, MONDAY)).toEqual([]);

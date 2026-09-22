@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { AssignmentStatus, SwapStatus } from "@prisma/client";
+import { AssignmentStatus, Prisma, SwapStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { formatDate, notifyRoute } from "@/lib/schedule";
@@ -20,14 +20,16 @@ export async function requestSwap(formData: FormData): Promise<void> {
   if (assignment.familyId !== user.familyId) {
     throw new Error("You can only request a swap for your own driving day");
   }
-  const open = await prisma.swapRequest.findFirst({
-    where: { assignmentId, status: SwapStatus.OPEN },
-  });
-  if (open) return;
-
-  await prisma.swapRequest.create({
-    data: { assignmentId, requestedById: user.id, note },
-  });
+  try {
+    await prisma.swapRequest.create({
+      data: { assignmentId, requestedById: user.id, note },
+    });
+  } catch (error) {
+    // Partial unique index on (assignmentId) where status = 'OPEN': the day
+    // already has an open swap, which is what the request was asking for.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return;
+    throw error;
+  }
   await notifyRoute(assignment.routeId, {
     type: "SWAP_REQUESTED",
     subject: `Swap needed: ${assignment.route.name} on ${formatDate(assignment.date)}`,
@@ -57,16 +59,20 @@ export async function claimSwap(formData: FormData): Promise<void> {
   });
   if (!membership) throw new Error("Only families on this route can claim a swap");
 
-  await prisma.$transaction([
-    prisma.swapRequest.update({
-      where: { id: swapId },
+  const familyId = user.family.id;
+  const claimed = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.swapRequest.updateMany({
+      where: { id: swapId, status: SwapStatus.OPEN },
       data: { status: SwapStatus.CLAIMED, claimedById: user.id, claimedAt: new Date() },
-    }),
-    prisma.drivingAssignment.update({
+    });
+    if (count === 0) return false;
+    await tx.drivingAssignment.update({
       where: { id: swap.assignmentId },
-      data: { familyId: user.family.id, status: AssignmentStatus.SWAPPED },
-    }),
-  ]);
+      data: { familyId, status: AssignmentStatus.SWAPPED },
+    });
+    return true;
+  });
+  if (!claimed) return;
   await notifyRoute(swap.assignment.routeId, {
     type: "SWAP_CLAIMED",
     subject: `Swap covered: ${swap.assignment.route.name} on ${formatDate(swap.assignment.date)}`,

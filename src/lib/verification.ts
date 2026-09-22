@@ -1,15 +1,37 @@
+import { randomInt, timingSafeEqual } from "node:crypto";
 import { VerificationChannel } from "@prisma/client";
 import { prisma } from "./db";
 import { notify } from "./notifications";
 
 const CODE_TTL_MINUTES = 15;
+const MAX_CODES_PER_WINDOW = 5;
+const MAX_ATTEMPTS_PER_CODE = 5;
 
+/** Dev codes are a local convenience and are never honoured in production. */
 export function showDevCodes(): boolean {
-  return process.env.SHOW_DEV_VERIFICATION_CODES === "true";
+  return process.env.NODE_ENV !== "production" && process.env.SHOW_DEV_VERIFICATION_CODES === "true";
 }
 
 function randomCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(randomInt(100000, 1000000));
+}
+
+function codesMatch(expected: string, given: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(given);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Throttles code issuance per user and channel so resends can't be abused. */
+export async function verificationSendsExhausted(
+  userId: string,
+  channel: VerificationChannel,
+): Promise<boolean> {
+  const since = new Date(Date.now() - CODE_TTL_MINUTES * 60 * 1000);
+  const recent = await prisma.verificationCode.count({
+    where: { userId, channel, createdAt: { gt: since } },
+  });
+  return recent >= MAX_CODES_PER_WINDOW;
 }
 
 export async function issueVerificationCode(
@@ -42,10 +64,17 @@ export async function consumeVerificationCode(
   code: string,
 ): Promise<boolean> {
   const record = await prisma.verificationCode.findFirst({
-    where: { userId, channel, code, consumedAt: null, expiresAt: { gt: new Date() } },
+    where: { userId, channel, consumedAt: null, expiresAt: { gt: new Date() } },
     orderBy: { createdAt: "desc" },
   });
-  if (!record) return false;
+  if (!record || record.attempts >= MAX_ATTEMPTS_PER_CODE) return false;
+  if (!codesMatch(record.code, code)) {
+    await prisma.verificationCode.update({
+      where: { id: record.id },
+      data: { attempts: { increment: 1 } },
+    });
+    return false;
+  }
   await prisma.$transaction([
     prisma.verificationCode.update({
       where: { id: record.id },

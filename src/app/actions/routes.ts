@@ -8,7 +8,7 @@ import { requireUser } from "@/lib/auth";
 import { geocode } from "@/lib/geocoding";
 import { notifyUsers } from "@/lib/notifications";
 import { rankFamiliesForRoute } from "@/lib/matching";
-import { notifyRoute, regenerateSchedule } from "@/lib/schedule";
+import { notifyRoute, regenerateSchedule, releaseFamilyFromRoute } from "@/lib/schedule";
 import type { FormState } from "./auth";
 
 async function requireGroupMembership(groupId: string) {
@@ -121,10 +121,6 @@ export async function leaveRoute(formData: FormData): Promise<void> {
   const routeId = String(formData.get("routeId"));
   const user = await requireUser();
   if (!user.family) redirect("/onboarding");
-  await prisma.routeMember.deleteMany({ where: { routeId, familyId: user.family.id } });
-  await prisma.drivingAssignment.deleteMany({
-    where: { routeId, familyId: user.family.id, date: { gte: new Date() } },
-  });
-  await regenerateSchedule(routeId);
+  await releaseFamilyFromRoute(routeId, user.family.id);
   revalidatePath(`/routes/${routeId}`);
 }

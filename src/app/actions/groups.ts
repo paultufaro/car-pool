@@ -1,5 +1,6 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { GroupType, MemberRole } from "@prisma/client";
@@ -8,17 +9,14 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { geocode } from "@/lib/geocoding";
 import { notifyUsers } from "@/lib/notifications";
-import { regenerateSchedule } from "@/lib/schedule";
+import { releaseFamilyFromRoute } from "@/lib/schedule";
 import type { FormState } from "./auth";
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 
 export async function generateInviteCode(): Promise<string> {
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    const code = Array.from(
-      { length: 8 },
-      () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)],
-    ).join("");
+    const code = Array.from({ length: 8 }, () => ALPHABET[randomInt(ALPHABET.length)]).join("");
     const clash = await prisma.group.findUnique({ where: { inviteCode: code } });
     if (!clash) return code;
   }
@@ -102,11 +100,8 @@ export async function removeMember(formData: FormData): Promise<void> {
     const memberships = await prisma.routeMember.findMany({
       where: { familyId: member.familyId, route: { groupId } },
     });
-    await prisma.routeMember.deleteMany({
-      where: { id: { in: memberships.map((m) => m.id) } },
-    });
     for (const membership of memberships) {
-      await regenerateSchedule(membership.routeId);
+      await releaseFamilyFromRoute(membership.routeId, member.familyId);
     }
   }
   await prisma.groupMember.delete({ where: { groupId_userId: { groupId, userId } } });

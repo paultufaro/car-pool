@@ -2,17 +2,23 @@ import { NextResponse } from "next/server";
 import { AssignmentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { notifyUsers } from "@/lib/notifications";
-import { formatDate, startOfDayUtc } from "@/lib/schedule";
+import { extendAllSchedules, formatDate, startOfDayUtc } from "@/lib/schedule";
 
 /**
- * Driving reminders for today and tomorrow. Trigger daily from a scheduler
- * (e.g. a Vercel cron) with the CRON_SECRET bearer token.
+ * Rolls every rotation forward, then sends driving reminders for today and
+ * tomorrow. Trigger daily from a scheduler (e.g. a Vercel cron) with the
+ * CRON_SECRET bearer token.
  */
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET;
-  if (secret && request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secret) {
+    return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
+  }
+  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  await extendAllSchedules();
 
   const today = startOfDayUtc(new Date());
   const tomorrow = new Date(today);

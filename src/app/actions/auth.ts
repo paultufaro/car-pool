@@ -7,7 +7,11 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { createSession, destroySession, getCurrentUser } from "@/lib/auth";
 import { geocode } from "@/lib/geocoding";
-import { consumeVerificationCode, issueVerificationCode } from "@/lib/verification";
+import {
+  consumeVerificationCode,
+  issueVerificationCode,
+  verificationSendsExhausted,
+} from "@/lib/verification";
 
 export type FormState = { error?: string; message?: string };
 
@@ -65,7 +69,7 @@ export async function verify(_prev: FormState, formData: FormData): Promise<Form
       : VerificationChannel.EMAIL;
   const code = String(formData.get("code") ?? "").trim();
   const ok = await consumeVerificationCode(user.id, channel, code);
-  if (!ok) return { error: "That code is invalid or expired" };
+  if (!ok) return { error: "That code is invalid, expired or has been tried too many times" };
 
   const updated = await prisma.user.findUnique({ where: { id: user.id } });
   if (updated?.emailVerifiedAt && updated?.phoneVerifiedAt) {
@@ -81,6 +85,9 @@ export async function resendCode(_prev: FormState, formData: FormData): Promise<
     String(formData.get("channel")) === "SMS"
       ? VerificationChannel.SMS
       : VerificationChannel.EMAIL;
+  if (await verificationSendsExhausted(user.id, channel)) {
+    return { error: "Too many codes requested. Wait a few minutes and try again." };
+  }
   await issueVerificationCode(user, channel);
   return { message: "New code sent" };
 }
