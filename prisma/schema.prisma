@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GroupType {
+  SCHOOL
+  SPORTS
+  ACTIVITY
+  NEIGHBORHOOD
+}
+
+enum MemberRole {
+  ADMIN
+  MEMBER
+}
+
+enum AssignmentStatus {
+  SCHEDULED
+  COMPLETED
+  SWAPPED
+}
+
+enum SwapStatus {
+  OPEN
+  CLAIMED
+  CANCELLED
+}
+
+enum VerificationChannel {
+  EMAIL
+  SMS
+}
+
+model User {
+  id              String    @id @default(cuid())
+  name            String
+  email           String    @unique
+  phone           String
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  phoneVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  familyId String?
+  family   Family? @relation("FamilyMembers", fields: [familyId], references: [id])
+
+  primaryOfFamily    Family?             @relation("FamilyPrimary")
+  memberships        GroupMember[]
+  createdRoutes      Route[]
+  swapsRequested     SwapRequest[]       @relation("SwapRequester")
+  swapsClaimed       SwapRequest[]       @relation("SwapClaimer")
+  verificationCodes  VerificationCode[]
+  notifications      NotificationLog[]
+}
+
+model Family {
+  id            String @id @default(cuid())
+  primaryUserId String @unique
+  primaryUser   User   @relation("FamilyPrimary", fields: [primaryUserId], references: [id])
+
+  homeAddress String
+  // Approximate area label shown to other members instead of the raw address.
+  neighborhood String
+  homeLat     Float
+  homeLng     Float
+  createdAt   DateTime @default(now())
+
+  members     User[]              @relation("FamilyMembers")
+  children    Child[]
+  routes      RouteMember[]
+  assignments DrivingAssignment[]
+}
+
+model Child {
+  id        String @id @default(cuid())
+  familyId  String
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  firstName String
+  grade     String
+}
+
+model Group {
+  id            String    @id @default(cuid())
+  name          String
+  type          GroupType
+  inviteCode    String    @unique
+  adminUserId   String
+  anchorAddress String
+  anchorLat     Float
+  anchorLng     Float
+  createdAt     DateTime  @default(now())
+
+  members GroupMember[]
+  routes  Route[]
+}
+
+model GroupMember {
+  id       String     @id @default(cuid())
+  groupId  String
+  group    Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     MemberRole @default(MEMBER)
+  joinedAt DateTime   @default(now())
+
+  @@unique([groupId, userId])
+}
+
+model Route {
+  id                     String   @id @default(cuid())
+  groupId                String
+  group                  Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdById            String
+  createdBy              User     @relation(fields: [createdById], references: [id])
+  name                   String
+  originDescription      String
+  originLat              Float
+  originLng              Float
+  destinationDescription String
+  destinationLat         Float
+  destinationLng         Float
+  // 0 = Sunday ... 6 = Saturday
+  daysOfWeek             Int[]
+  timeWindowStart        String
+  timeWindowEnd          String
+  rotationWeeks          Int      @default(1)
+  matchRadiusMiles       Float    @default(1)
+  createdAt              DateTime @default(now())
+
+  members     RouteMember[]
+  assignments DrivingAssignment[]
+}
+
+model RouteMember {
+  id       String   @id @default(cuid())
+  routeId  String
+  route    Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  familyId String
+  family   Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([routeId, familyId])
+}
+
+model DrivingAssignment {
+  id       String           @id @default(cuid())
+  routeId  String
+  route    Route            @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  familyId String
+  family   Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  date     DateTime         @db.Date
+  status   AssignmentStatus @default(SCHEDULED)
+
+  swapRequests SwapRequest[]
+
+  @@unique([routeId, date])
+}
+
+model SwapRequest {
+  id            String            @id @default(cuid())
+  assignmentId  String
+  assignment    DrivingAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  requestedById String
+  requestedBy   User              @relation("SwapRequester", fields: [requestedById], references: [id])
+  claimedById   String?
+  claimedBy     User?             @relation("SwapClaimer", fields: [claimedById], references: [id])
+  note          String?
+  status        SwapStatus        @default(OPEN)
+  createdAt     DateTime          @default(now())
+  claimedAt     DateTime?
+}
+
+model NotificationLog {
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type    String
+  channel String
+  subject String
+  body    String
+  sentAt  DateTime @default(now())
+}
+
+model VerificationCode {
+  id         String              @id @default(cuid())
+  userId     String
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel    VerificationChannel
+  code       String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime            @default(now())
+}
