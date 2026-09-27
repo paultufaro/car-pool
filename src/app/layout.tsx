@@ -10,39 +10,53 @@ export const metadata: Metadata = {
     "Organize recurring school, sports and activity carpools with parents you already know.",
 };
 
+const navLinkClass = "flex min-h-11 items-center rounded-lg px-2";
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   return (
     <html lang="en">
       <body>
         <header className="border-b border-slate-200 bg-white">
-          <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <Link href={user ? "/dashboard" : "/"} className="font-semibold text-slate-900">
+          <nav className="mx-auto flex max-w-5xl items-center justify-between px-4 py-1">
+            <Link
+              href={user ? "/dashboard" : "/"}
+              className="flex min-h-11 items-center font-semibold text-slate-900"
+            >
               Carpool<span className="text-sky-700">.</span>
             </Link>
-            <div className="flex items-center gap-4 text-sm">
-              <Link href="/terms" className="text-slate-500 hover:text-slate-800">
+            <div className="flex items-center gap-2 text-sm">
+              <Link href="/terms" className={`${navLinkClass} text-slate-500 hover:text-slate-800`}>
                 Terms
               </Link>
               {user ? (
                 <>
-                  <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
+                  <Link
+                    href="/dashboard"
+                    className={`${navLinkClass} text-slate-600 hover:text-slate-900`}
+                  >
                     Dashboard
                   </Link>
                   <form action={logOut}>
-                    <button type="submit" className="text-slate-500 hover:text-slate-800">
+                    <button
+                      type="submit"
+                      className={`${navLinkClass} text-slate-500 hover:text-slate-800`}
+                    >
                       Sign out
                     </button>
                   </form>
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="text-slate-600 hover:text-slate-900">
+                  <Link
+                    href="/login"
+                    className={`${navLinkClass} text-slate-600 hover:text-slate-900`}
+                  >
                     Log in
                   </Link>
                   <Link
                     href="/signup"
-                    className="rounded-lg bg-sky-700 px-3 py-1.5 font-medium text-white hover:bg-sky-800"
+                    className={`${navLinkClass} rounded-lg bg-sky-700 font-medium text-white hover:bg-sky-800`}
                   >
                     Sign up
                   </Link>
