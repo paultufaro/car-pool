@@ -28,6 +28,24 @@ Demo logins (all password `carpool123`):
 
 Other commands: `npm run lint`, `npm run typecheck`, `npm test`, `npm run db:reset`.
 
+## Deploying to Vercel
+
+`vercel.json` runs `prisma migrate deploy` before each build and registers the daily reminder cron
+(11:00 UTC). Set these project environment variables:
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | Hosted Postgres (Neon, Supabase, RDS). Use the pooled URL. |
+| `SESSION_SECRET` | yes | 32+ random characters; the app refuses the example value in production. |
+| `CRON_SECRET` | yes | Vercel sends it as the cron request's bearer token automatically. |
+| `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` | no | Real email; otherwise messages are only logged. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | no | Real SMS. |
+| `GEOCODER=mapbox`, `MAPBOX_TOKEN` | no | Real geocoding instead of the local gazetteer. |
+
+Leave `SHOW_DEV_VERIFICATION_CODES` unset in production — codes are never shown there anyway.
+Seed a fresh deployment once with `DATABASE_URL=<prod url> npm run db:seed` (destructive: it clears
+existing data first).
+
 ## Architecture
 
 - **Next.js 15 App Router + TypeScript + Tailwind v4.** Pages are server components; every mutation
