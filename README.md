@@ -30,6 +30,8 @@ Other commands: `npm run lint`, `npm run typecheck`, `npm test`, `npm run db:res
 
 ## Deploying to Vercel
 
+Live pilot instance: https://car-pool-six.vercel.app (Neon Postgres, seeded with the Summit demo data).
+
 `vercel.json` runs `prisma migrate deploy` before each build and registers the daily reminder cron
 (11:00 UTC). Set these project environment variables:
 
