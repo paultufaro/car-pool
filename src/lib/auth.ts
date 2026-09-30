@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "./db";
+import { isVerified } from "./verification";
 
 const COOKIE_NAME = "carpool_session";
 const SESSION_DAYS = 30;
@@ -71,7 +72,7 @@ export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>
 export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!user.emailVerifiedAt || !user.phoneVerifiedAt) redirect("/verify");
+  if (!isVerified(user)) redirect("/verify");
   if (!user.family) redirect("/onboarding");
   return user;
 }
@@ -79,6 +80,6 @@ export async function requireUser(): Promise<CurrentUser> {
 export async function requireVerifiedUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!user.emailVerifiedAt || !user.phoneVerifiedAt) redirect("/verify");
+  if (!isVerified(user)) redirect("/verify");
   return user;
 }

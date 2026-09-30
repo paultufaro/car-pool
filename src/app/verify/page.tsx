@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { VerificationChannel } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth";
-import { latestDevCode, showDevCodes } from "@/lib/verification";
+import {
+  isVerified,
+  latestDevCode,
+  phoneVerificationRequired,
+  showDevCodes,
+} from "@/lib/verification";
 import { resendCode, verify } from "../actions/auth";
 import { VerifyForm } from "@/components/forms";
 import { Badge, Card } from "@/components/ui";
@@ -9,7 +14,7 @@ import { Badge, Card } from "@/components/ui";
 export default async function VerifyPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.emailVerifiedAt && user.phoneVerifiedAt) {
+  if (isVerified(user)) {
     redirect(user.familyId ? "/dashboard" : "/onboarding");
   }
   const [emailCode, smsCode] = await Promise.all([
@@ -21,7 +26,11 @@ export default async function VerifyPage() {
     <div className="mx-auto max-w-md space-y-4">
       <Card
         title="Verify your contact details"
-        description="Carpool sends driving reminders and swap alerts to both, so we confirm each one."
+        description={
+          phoneVerificationRequired()
+            ? "Carpool sends driving reminders and swap alerts to both, so we confirm each one."
+            : "Carpool sends driving reminders and swap alerts by email, so we confirm it first."
+        }
       >
         <div className="space-y-6">
           <div className="space-y-2">
@@ -39,21 +48,23 @@ export default async function VerifyPage() {
               />
             )}
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-slate-700">
-              <span className="font-medium">{user.phone}</span>
-              {user.phoneVerifiedAt ? <Badge tone="green">Verified</Badge> : <Badge>Pending</Badge>}
+          {phoneVerificationRequired() && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-slate-700">
+                <span className="font-medium">{user.phone}</span>
+                {user.phoneVerifiedAt ? <Badge tone="green">Verified</Badge> : <Badge>Pending</Badge>}
+              </div>
+              {!user.phoneVerifiedAt && (
+                <VerifyForm
+                  action={verify}
+                  resend={resendCode}
+                  channel="SMS"
+                  label="Text message code"
+                  devCode={smsCode}
+                />
+              )}
             </div>
-            {!user.phoneVerifiedAt && (
-              <VerifyForm
-                action={verify}
-                resend={resendCode}
-                channel="SMS"
-                label="Text message code"
-                devCode={smsCode}
-              />
-            )}
-          </div>
+          )}
         </div>
       </Card>
       {showDevCodes() && (
