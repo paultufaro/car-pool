@@ -6,10 +6,10 @@ import { extendAllSchedules, formatDate, startOfDayUtc } from "@/lib/schedule";
 
 /**
  * Rolls every rotation forward, then sends driving reminders for today and
- * tomorrow. Trigger daily from a scheduler (e.g. a Vercel cron) with the
- * CRON_SECRET bearer token.
+ * tomorrow. Trigger daily from a scheduler with the CRON_SECRET bearer token;
+ * Vercel crons issue a GET with that header when CRON_SECRET is set.
  */
-export async function POST(request: Request) {
+async function runReminders(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
@@ -51,3 +51,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ reminders: assignments.length });
 }
+
+export const POST = runReminders;
+export const GET = runReminders;

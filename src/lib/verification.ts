@@ -1,7 +1,7 @@
 import { randomInt, timingSafeEqual } from "node:crypto";
 import { VerificationChannel } from "@prisma/client";
 import { prisma } from "./db";
-import { notify } from "./notifications";
+import { notify, smsConfigured } from "./notifications";
 
 const CODE_TTL_MINUTES = 15;
 const MAX_CODES_PER_WINDOW = 5;
@@ -10,6 +10,15 @@ const MAX_ATTEMPTS_PER_CODE = 5;
 /** Dev codes are a local convenience and are never honoured in production. */
 export function showDevCodes(): boolean {
   return process.env.NODE_ENV !== "production" && process.env.SHOW_DEV_VERIFICATION_CODES === "true";
+}
+
+/** Phone codes can only be delivered with an SMS provider (or shown in dev), so otherwise they are skipped. */
+export function phoneVerificationRequired(): boolean {
+  return showDevCodes() || smsConfigured();
+}
+
+export function isVerified(user: { emailVerifiedAt: Date | null; phoneVerifiedAt: Date | null }) {
+  return Boolean(user.emailVerifiedAt && (user.phoneVerifiedAt || !phoneVerificationRequired()));
 }
 
 function randomCode(): string {

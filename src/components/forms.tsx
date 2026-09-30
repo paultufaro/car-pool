@@ -262,12 +262,16 @@ export function CreateRouteForm({ action, groupId }: { action: Action; groupId: 
         <legend className="text-sm font-medium text-slate-700">Days</legend>
         <div className="flex flex-wrap gap-3">
           {DAYS.map((day, index) => (
-            <label key={day} className="flex items-center gap-1.5 text-sm text-slate-700">
+            <label
+              key={day}
+              className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm text-slate-700"
+            >
               <input
                 type="checkbox"
                 name="daysOfWeek"
                 value={index}
                 defaultChecked={index >= 1 && index <= 5}
+                className="size-4"
               />
               {day}
             </label>

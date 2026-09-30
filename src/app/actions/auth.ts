@@ -10,7 +10,9 @@ import { createSession, destroySession, getCurrentUser } from "@/lib/auth";
 import { geocode } from "@/lib/geocoding";
 import {
   consumeVerificationCode,
+  isVerified,
   issueVerificationCode,
+  phoneVerificationRequired,
   verificationSendsExhausted,
 } from "@/lib/verification";
 
@@ -40,7 +42,7 @@ export async function signUp(_prev: FormState, formData: FormData): Promise<Form
     },
   });
   await issueVerificationCode(user, VerificationChannel.EMAIL);
-  await issueVerificationCode(user, VerificationChannel.SMS);
+  if (phoneVerificationRequired()) await issueVerificationCode(user, VerificationChannel.SMS);
   await createSession(user.id);
   redirect("/verify");
 }
@@ -74,7 +76,7 @@ export async function verify(_prev: FormState, formData: FormData): Promise<Form
   revalidatePath("/verify");
 
   const updated = await prisma.user.findUnique({ where: { id: user.id } });
-  if (updated?.emailVerifiedAt && updated?.phoneVerifiedAt) {
+  if (updated && isVerified(updated)) {
     redirect(updated.familyId ? "/dashboard" : "/onboarding");
   }
   return { message: `${channel === VerificationChannel.SMS ? "Phone" : "Email"} verified` };

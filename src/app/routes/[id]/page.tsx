@@ -4,7 +4,7 @@ import { SwapStatus } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { scoreFamilyAgainstRoute } from "@/lib/matching";
-import { DAY_LABELS, formatDate, startOfDayUtc } from "@/lib/schedule";
+import { DAY_LABELS, formatDate, SCHEDULE_WEEKS, startOfDayUtc } from "@/lib/schedule";
 import { joinRoute, leaveRoute } from "@/app/actions/routes";
 import { cancelSwap, claimSwap, requestSwap } from "@/app/actions/swaps";
 import {
@@ -21,6 +21,8 @@ export default async function RoutePage({ params }: { params: Promise<{ id: stri
   const user = await requireUser();
   const family = user.family!;
   const today = startOfDayUtc(new Date());
+  const horizon = new Date(today);
+  horizon.setUTCDate(today.getUTCDate() + SCHEDULE_WEEKS * 7);
 
   const route = await prisma.route.findUnique({
     where: { id },
@@ -28,13 +30,12 @@ export default async function RoutePage({ params }: { params: Promise<{ id: stri
       group: true,
       members: { include: { family: { include: { members: true, children: true } } } },
       assignments: {
-        where: { date: { gte: today } },
+        where: { date: { gte: today, lt: horizon } },
         include: {
           family: { include: { primaryUser: true } },
           swapRequests: { include: { requestedBy: true }, orderBy: { createdAt: "desc" } },
         },
         orderBy: { date: "asc" },
-        take: 20,
       },
     },
   });
@@ -95,7 +96,7 @@ export default async function RoutePage({ params }: { params: Promise<{ id: stri
         </p>
       )}
 
-      <Card title="Driving rotation" description="Next eight weeks.">
+      <Card title="Driving rotation" description={`Next ${SCHEDULE_WEEKS} weeks.`}>
         {route.assignments.length === 0 ? (
           <EmptyState>No schedule yet.</EmptyState>
         ) : (

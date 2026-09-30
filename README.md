@@ -28,6 +28,27 @@ Demo logins (all password `carpool123`):
 
 Other commands: `npm run lint`, `npm run typecheck`, `npm test`, `npm run db:reset`.
 
+## Deploying to Vercel
+
+Live pilot instance: https://car-pool-six.vercel.app (Neon Postgres, seeded with the Summit demo data).
+
+`vercel.json` runs `prisma migrate deploy` before each build and registers the daily reminder cron
+(11:00 UTC). Set these project environment variables:
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | Hosted Postgres (Neon, Supabase, RDS). Use the pooled URL. |
+| `SESSION_SECRET` | yes | 32+ random characters; the app refuses the example value in production. |
+| `CRON_SECRET` | yes | Vercel sends it as the cron request's bearer token automatically. |
+| `BREVO_API_KEY`, `BREVO_FROM_EMAIL` | no | Real email (free 300/day). The sender must be verified in Brevo. |
+| `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` | no | Alternative email provider, used when Brevo is not set. |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` | no | Real SMS. Without it, phone verification is skipped. |
+| `GEOCODER=mapbox`, `MAPBOX_TOKEN` | no | Real geocoding instead of the local gazetteer. |
+
+Leave `SHOW_DEV_VERIFICATION_CODES` unset in production — codes are never shown there anyway.
+Seed a fresh deployment once with `DATABASE_URL=<prod url> npm run db:seed` (destructive: it clears
+existing data first).
+
 ## Architecture
 
 - **Next.js 15 App Router + TypeScript + Tailwind v4.** Pages are server components; every mutation
@@ -35,15 +56,16 @@ Other commands: `npm run lint`, `npm run typecheck`, `npm test`, `npm run db:res
 - **PostgreSQL via Prisma** (`prisma/schema.prisma`). Proximity math runs in application code, so
   PostGIS is not required yet.
 - **Auth** (`src/lib/auth.ts`): email + password with bcrypt, session in an HttpOnly JWT cookie
-  (`jose`). Email and phone are each confirmed with a 6-digit code before a user can do anything.
+  (`jose`). Email and phone are each confirmed with a 6-digit code before a user can do anything;
+  the phone step is skipped when no SMS provider is configured, since the code couldn't be delivered.
 - **Verification** (`src/lib/verification.ts`): codes expire in 15 minutes. With
   `SHOW_DEV_VERIFICATION_CODES=true` they are pre-filled in the UI so the app is usable without
   SMS/email providers.
 - **Geocoding** (`src/lib/geocoding.ts`): Mapbox when `GEOCODER=mapbox` and `MAPBOX_TOKEN` are set,
   otherwise a built-in gazetteer of the pilot towns that spreads addresses deterministically within
   a town. Same interface either way.
-- **Notifications** (`src/lib/notifications.ts`): SendGrid (email) and Twilio (SMS) when their keys
-  are set; otherwise messages are logged to stdout. Every message is written to `notifications_log`
+- **Notifications** (`src/lib/notifications.ts`): Brevo or SendGrid (email) and Twilio (SMS) when
+  their keys are set; otherwise messages are logged to stdout. Every message is written to `notifications_log`
   regardless of channel.
 - **Matching** (`src/lib/matching.ts`): a family matches a route when its home is within the route's
   radius of the origin *or* of the straight origin→destination line. Distances are haversine miles.
@@ -67,7 +89,7 @@ route) · placeholder Terms of Service.
 
 ## Stubbed or out of scope
 
-- **Notification delivery** falls back to database logging until SendGrid/Twilio keys are set.
+- **Notification delivery** falls back to database logging until Brevo/SendGrid/Twilio keys are set.
   Day-before and morning-of reminders are implemented as `POST /api/cron/reminders` (bearer
   `CRON_SECRET`, which is required — the endpoint returns 503 without it), but nothing schedules it
   yet. Point a Vercel cron or similar at it daily; it also extends schedules past the 8-week

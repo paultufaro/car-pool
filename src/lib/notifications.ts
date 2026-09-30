@@ -19,7 +19,25 @@ export type NotificationInput = {
   phone?: string;
 };
 
-async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
+async function sendBrevoEmail(to: string, subject: string, body: string): Promise<boolean> {
+  const apiKey = process.env.BREVO_API_KEY;
+  const from = process.env.BREVO_FROM_EMAIL;
+  if (!apiKey || !from) return false;
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: { "api-key": apiKey, "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      sender: { email: from, name: "Carpool" },
+      to: [{ email: to }],
+      subject,
+      textContent: body,
+    }),
+  });
+  if (!response.ok) console.error("brevo send failed", response.status, await response.text());
+  return response.ok;
+}
+
+async function sendSendGridEmail(to: string, subject: string, body: string): Promise<boolean> {
   const apiKey = process.env.SENDGRID_API_KEY;
   const from = process.env.SENDGRID_FROM_EMAIL;
   if (!apiKey || !from) return false;
@@ -34,6 +52,18 @@ async function sendEmail(to: string, subject: string, body: string): Promise<boo
     }),
   });
   return response.ok;
+}
+
+async function sendEmail(to: string, subject: string, body: string): Promise<boolean> {
+  return process.env.BREVO_API_KEY
+    ? sendBrevoEmail(to, subject, body)
+    : sendSendGridEmail(to, subject, body);
+}
+
+export function smsConfigured(): boolean {
+  return Boolean(
+    process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_NUMBER,
+  );
 }
 
 async function sendSms(to: string, body: string): Promise<boolean> {
